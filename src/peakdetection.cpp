@@ -2,7 +2,7 @@
 #include <Arduino.h>
 
 PeakDetection::PeakDetection(int lag, float threshold, float influence) {
-  // memset(signals, 0, sizeof(int) * SAMPLE_LENGTH);
+  memset(signals, 0, sizeof(int) * SAMPLE_LENGTH);
   // memset(avgFilter, 0, sizeof(int) * SAMPLE_LENGTH);
   // memset(stdFilter, 0, sizeof(int) * SAMPLE_LENGTH);
   this->lag = lag;
@@ -13,32 +13,68 @@ PeakDetection::PeakDetection(int lag, float threshold, float influence) {
 PeakDetection::~PeakDetection() {}
 
 void PeakDetection::process(short *sample_buffer, int sample_count) {
+  float fsamples[sample_count];
+  // std::copy(sample_buffer, sample_buffer + sample_count, fsamples);
+  for (int i = 0; i < sample_count; i++) {
+    fsamples[i] = (float)sample_buffer[i];
+  }
 
-  short filteredY[sample_count];
-  memcpy(filteredY, sample_buffer, sizeof(float) * sample_count); // sizeof(float)?
+  float filteredY[sample_count];
+  memcpy(filteredY, fsamples, sizeof(float) * lag); // sizeof(float)?
   float avgFilter[sample_count];
   float stdFilter[sample_count];
 
-  avgFilter[lag - 1] = mean(sample_buffer, lag);
-  stdFilter[lag - 1] = stddev(sample_buffer, lag);
+  avgFilter[lag - 1] = mean(fsamples, lag);
+  stdFilter[lag - 1] = stddev(fsamples, lag);
 
   for (int i = lag; i < sample_count; i++) {
-    if (fabsf(sample_buffer[i] - avgFilter[i - 1]) > threshold * stdFilter[i - 1]) {
-      if (sample_buffer[i] > avgFilter[i - 1]) {
+    Serial.print(">pdm: ");
+    Serial.println(sample_buffer[i]);
+    Serial.print(">sample: ");
+    Serial.println(fsamples[i]);
+    Serial.print(">lala: ");
+    Serial.println((float)sample_buffer[i]);
+    Serial.println(">check: " + String(fabsf(fsamples[i] - avgFilter[i - 1])));
+    Serial.println(">treshold: " + String(threshold * stdFilter[i - 1]));
+    if (fabsf(fsamples[i] - avgFilter[i - 1]) > threshold * stdFilter[i - 1]) {
+      if (fsamples[i] > avgFilter[i - 1]) {
         signals[i] = 1;
       } else {
-        signals[i] = -1;
+        signals[i] = 1; // TODO: normally -1
       }
-      filteredY[i] = influence * sample_buffer[i] + (1 - influence) * filteredY[i - 1];
+      filteredY[i] = influence * fsamples[i] + (1 - influence) * filteredY[i - 1];
     } else {
       signals[i] = 0;
+      filteredY[i] = fsamples[i];
     }
     avgFilter[i] = mean(filteredY + i - lag, lag);
     stdFilter[i] = stddev(filteredY + i - lag, lag);
+
+    // Serial.println(">mean: " + String(avgFilter[i]));
+    // Serial.println(">std: " + String(stdFilter[i]));
+    Serial.println(">peak: " + String(signals[i]));
   }
 }
 
-float mean(float data[], int len) {
+float *PeakDetection::get_signals() {
+  float rsignals[SAMPLE_LENGTH];
+  memcpy(signals, rsignals, sizeof(float) * SAMPLE_LENGTH);
+  memset(signals, 0, sizeof(int) * SAMPLE_LENGTH);
+
+  return rsignals;
+}
+
+int PeakDetection::get_signal_count() {
+  int count = 0;
+  for (int i = 0; i < SAMPLE_LENGTH; i++) {
+    if (signals[i] != 0) {
+      count++;
+    }
+  }
+  return count;
+}
+
+float PeakDetection::mean(float data[], int len) {
   float sum = 0.0, mean = 0.0;
 
   int i;
@@ -50,7 +86,7 @@ float mean(float data[], int len) {
   return mean;
 }
 
-float stddev(float data[], int len) {
+float PeakDetection::stddev(float data[], int len) {
   float the_mean = mean(data, len);
   float standardDeviation = 0.0;
 

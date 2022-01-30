@@ -1,13 +1,15 @@
-#ifndef PEAKDETECTION_H
-#define PEAKDETECTION_H
+#ifndef _PEAKDETECTION_H_INCLUDED
+#define _PEAKDETECTION_H_INCLUDED
+
+#define SAMPLE_LENGTH 1000
 
 class PeakDetection {
 public:
   PeakDetection(int lag, float threshold, float influence);
   ~PeakDetection();
   void process(short *sample_buffer, int sample_count);
-  // int *get_signals();
-  // int get_signal_count();
+  float *get_signals();
+  int get_signal_count();
 
 private:
   int lag;
@@ -15,10 +17,10 @@ private:
   float influence;
   float avgFilter[0];
   float stdFilter[0];
-  float signals[0];
+  float signals[SAMPLE_LENGTH];
   // int signal_count;
-  short mean(short data[], int len);
-  short stddev(short data[], int len);
+  float mean(float data[], int len);
+  float stddev(float data[], int len);
 };
 
 // float stddev(float data[], int len);
